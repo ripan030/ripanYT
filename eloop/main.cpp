@@ -3,6 +3,7 @@
 #include <functional>
 #include <mutex>
 #include <condition_variable>
+#include <queue>
 
 enum class EventType {
   EVENT1 = 1,
@@ -17,8 +18,7 @@ class EventLoop {
   std::unordered_map<EventType, EventHanlder> eventHanlders_;
 
 
-  bool eventReceived_;
-  EventType incomingEvent_;
+  std::queue<EventType> eventQueue;
   std::mutex mutex_;
   std::condition_variable cv_;
 public:
@@ -35,20 +35,20 @@ public:
     std::unique_lock<std::mutex> lock{mutex_};
 
     // wait for the event
-    cv_.wait(lock, [this](){return this->eventReceived_ == true;});
+    cv_.wait(lock, [this](){return !eventQueue.empty();});
 
-    eventReceived_ = false;
+    EventType e = eventQueue.front();
 
-    return incomingEvent_;
+    eventQueue.pop();
+
+    return e;
   }
 
   // invoked from a different thread
   void PostEvent(EventType e) {
     std::unique_lock<std::mutex> lock{mutex_};
 
-    eventReceived_ = true;
-
-    incomingEvent_ = e;
+    eventQueue.push(e);
 
     cv_.notify_one();
   }
