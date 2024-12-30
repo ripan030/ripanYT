@@ -7,6 +7,7 @@
 enum class EventType {
   EVENT1 = 1,
   EVENT2 = 2,
+  EVENT3 = 3,
 };
 
 using EventHanlder = std::function<void(const EventType)>;
@@ -22,7 +23,7 @@ class EventLoop {
   std::condition_variable cv_;
 public:
   EventLoop() : running_{true} {
-
+    RegisterHanlder(EventType::EVENT3, [this](const EventType e){this->running_ = false;});
   }
 
   void RegisterHanlder(EventType e, EventHanlder handler) {
@@ -67,6 +68,10 @@ public:
       HandleEvent(e);
     }
   }
+
+  void Stop() {
+    PostEvent(EventType::EVENT3);
+  }
 };
 
 #include <thread>
@@ -86,12 +91,19 @@ int main() {
       loop.PostEvent(EventType::EVENT1);
       std::this_thread::sleep_for(intvl);
       loop.PostEvent(EventType::EVENT2);
+      std::this_thread::sleep_for(intvl);
+      std::cout << "[Thread] invoke stop\n";
+      loop.Stop();
       });
 
   loop.RegisterHanlder(EventType::EVENT1, handler);
   loop.RegisterHanlder(EventType::EVENT2, handler);
 
   loop.Run();
+
+  if (thread_.joinable()) {
+    thread_.join();
+  }
 
   return 0;
 }
