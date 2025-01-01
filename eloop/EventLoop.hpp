@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
+#include <optional>
 
 #include "Event.hpp"
 #include "EventQueue.hpp"
@@ -39,17 +41,19 @@ public:
   }
 
   // invoked from the main thread where event loop is running
-  Event GetNextEvent() {
+  std::optional<Event> GetNextEvent() {
     std::unique_lock<std::mutex> lock{mutex_};
 
     // wait for the event
-    cv_.wait(lock, [this](){return !eventQueue_.empty();});
+    cv_.wait_for(lock, std::chrono::milliseconds(100), [this](){return !eventQueue_.empty();});
 
-    Event e = eventQueue_.front();
+    if (!eventQueue_.empty()) {
+      Event e = eventQueue_.front();
+      eventQueue_.pop();
+      return e;
+    }
 
-    eventQueue_.pop();
-
-    return e;
+    return std::nullopt;
   }
 
   // invoked from a different thread
@@ -64,7 +68,9 @@ public:
   void Run() {
     while (running_) {
       auto e = GetNextEvent();
-      HandleEvent(e);
+      if (e) {
+        HandleEvent(*e);
+      }
     }
   }
 
