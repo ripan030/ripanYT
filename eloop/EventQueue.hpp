@@ -2,8 +2,6 @@
 #define EVENT_QUEUE
 
 #include <queue>
-#include <mutex>
-#include <condition_variable>
 
 #include "Event.hpp"
 

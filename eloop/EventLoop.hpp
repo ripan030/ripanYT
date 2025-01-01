@@ -2,6 +2,8 @@
 #define EVENT_LOOP
 
 #include <unordered_map>
+#include <mutex>
+#include <condition_variable>
 
 #include "Event.hpp"
 #include "EventQueue.hpp"
