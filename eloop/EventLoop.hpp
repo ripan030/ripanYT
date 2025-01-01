@@ -11,6 +11,9 @@ using EventHandler = std::function<void(const Event&)>;
 class EventLoop {
   bool running_;
   std::unordered_map<Event::EventType, EventHandler> eventHandlers_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
+
   EventQueue eventQueue_;
 
   void HandleEvent(const Event& e) {
@@ -29,17 +32,36 @@ public:
     RegisterHanlder(Event::EventType::QUIT, stopHandler);
   }
 
-  void PostEvent(const Event& e) {
-    eventQueue_.PostEvent(e);
-  }
-
   void RegisterHanlder(Event::EventType type, EventHandler handler) {
     eventHandlers_[type] = handler;
   }
 
+  // invoked from the main thread where event loop is running
+  Event GetNextEvent() {
+    std::unique_lock<std::mutex> lock{mutex_};
+
+    // wait for the event
+    cv_.wait(lock, [this](){return !eventQueue_.empty();});
+
+    Event e = eventQueue_.front();
+
+    eventQueue_.pop();
+
+    return e;
+  }
+
+  // invoked from a different thread
+  void PostEvent(const Event& e) {
+    std::unique_lock<std::mutex> lock{mutex_};
+
+    eventQueue_.push(e);
+
+    cv_.notify_one();
+  }
+
   void Run() {
     while (running_) {
-      auto e = eventQueue_.GetNextEvent();
+      auto e = GetNextEvent();
       HandleEvent(e);
     }
   }

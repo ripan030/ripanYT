@@ -9,31 +9,22 @@
 
 class EventQueue {
   std::queue<Event> eventQueue_;
-  std::mutex mutex_;
-  std::condition_variable cv_;
 
 public:
-  // invoked from the main thread where event loop is running
-  Event GetNextEvent() {
-    std::unique_lock<std::mutex> lock{mutex_};
-
-    // wait for the event
-    cv_.wait(lock, [this](){return !eventQueue_.empty();});
-
-    Event e = eventQueue_.front();
-
-    eventQueue_.pop();
-
-    return e;
+  void push(const Event& e) {
+    eventQueue_.push(e);
   }
 
-  // invoked from a different thread
-  void PostEvent(const Event& e) {
-    std::unique_lock<std::mutex> lock{mutex_};
+  void pop() {
+    eventQueue_.pop();
+  }
 
-    eventQueue_.push(e);
+  Event front() {
+    return eventQueue_.front();
+  }
 
-    cv_.notify_one();
+  bool empty() {
+    return eventQueue_.empty();
   }
 };
 
